@@ -1,0 +1,27 @@
+name: 清理异常粉丝
+
+on:
+  workflow_dispatch:
+
+jobs:
+  remove-fans:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Run remove_rob_fans
+        env:
+          sessdata: ${{ secrets.SESSDATA }}
+          bili_jct: ${{ secrets.BILI_JCT }}
+          buvid3: ${{ secrets.BUVID3 }}
+          ac_time_value: ${{ secrets.AC_TIME_VALUE }}
+        run: python remove_rob_fans.py
