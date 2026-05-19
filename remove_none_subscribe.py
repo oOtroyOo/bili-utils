@@ -4,6 +4,8 @@ import asyncio
 
 global my_user
 
+white_list = [11783021]  # "哔哩哔哩番剧出差"
+
 
 async def main() -> None:
     global my_user
@@ -16,18 +18,19 @@ async def start_remove() -> None:
     if not my_user:
         raise
 
-    follower_counts = 0
+    following_counts = 0
     page = 1
-    total_followers = (await my_user.get_relation_info())["follower"]
+    relation_info = await my_user.get_relation_info()
+    total_followings = relation_info["following"]
 
-    # 因为请求一次 get_followers 只能获取 20 个粉丝，所以要做一个检查
-    while follower_counts < total_followers:
-        # 获取当前页数的粉丝列表
+    # 因为请求一次 get_followers 只能获取 50 个关注，所以要做一个检查
+    while following_counts < total_followings:
+        # 获取当前页数的关注列表
         followers = None
         while True:
             try:
-                print(f"获取第{page}页粉丝")
-                followers = await my_user.get_followers(pn=page)
+                print(f"获取第{page}页关注")
+                followers = await my_user.get_followings(pn=page)
                 # 防止触发 412 错误
                 await asyncio.sleep(1)
                 break
@@ -39,15 +42,21 @@ async def start_remove() -> None:
                 else:
                     raise
 
-        # 循环当前页数的粉丝列表
+        # 循环当前页数的关注列表
+        if not followers or len(followers["list"]) == 0:
+            return
         for i in followers["list"]:
-            follower_counts += 1
+            following_counts += 1
 
             uid = int(i["mid"])
             name = i["uname"]
             u = user.User(uid=uid, credential=credential)
             is_banned = False
             is_cancelled = False
+
+            if uid in white_list:
+                continue
+
             while True:
                 try:
                     u_info = await u.get_user_info()
@@ -70,15 +79,16 @@ async def start_remove() -> None:
                     else:
                         break
 
-            if not is_banned and not is_cancelled:
+            # if not is_banned and not is_cancelled:
+            if not is_cancelled:
                 continue
 
             status = "已注销" if is_cancelled else "封禁"
-            print(f"Removing [{status}] {name}, uid:{uid}. Count: {follower_counts}")
+            print(f"Removing [{status}] {name}, uid:{uid}. Count: {following_counts}")
             while True:
                 try:
 
-                    await u.modify_relation(relation=user.RelationType.REMOVE_FANS)
+                    result = await u.modify_relation(relation=user.RelationType.UNSUBSCRIBE)
                     # 防止触发 412 错误
                     await asyncio.sleep(1)
                     break
